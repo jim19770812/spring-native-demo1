@@ -51,6 +51,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <image>
+                        <!--镜像的打包方式，tiny：精简，full：完整（其中包含bash）-->
                         <builder>paketobuildpacks/builder:full</builder>
                         <env>
                             <BP_NATIVE_IMAGE>true</BP_NATIVE_IMAGE>
