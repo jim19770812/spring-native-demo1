@@ -46,7 +46,7 @@ $ docker run --rm spring-native-demo1:0.0.1-SNAPSHOT
  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
   '  |____| .__|_| |_|_| |_\__, | / / / /
  =========|_|==============|___/=/_/_/_/
- :: Spring Boot ::                (v2.4.5)
+ :: Spring Boot ::                (v2.5.5)
 
 2021-05-15 11:31:38.863  INFO 1 --- [           main] c.e.demo1.SpringNativeDemo1Application   : Starting SpringNativeDemo1Application using Java 11.0.10 on 9fb436d7727a with PID 1 (/workspace/com.example.demo1.SpringNativeDemo1Application started by cnb in /workspace)
 2021-05-15 11:31:38.863  INFO 1 --- [           main] c.e.demo1.SpringNativeDemo1Application   : No active profile set, falling back to default profiles: default
@@ -78,21 +78,31 @@ $
 
 5.分析
 5.1.无法进入镜像
-镜像里没有包含shell，无法进入到镜像里，但并不妨碍复制里面的文件
+
+如果打包的镜像是
+
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <configuration>
+        <image>
+            <builder>paketobuildpacks/builder:tiny</builder>
+            <env>
+                <BP_NATIVE_IMAGE>true</BP_NATIVE_IMAGE>
+            </env>
+        </image>
+    其中的paketobuildpacks/builder:tiny表示这是一个极简版本，不包含shell的，可以把tiny改成full再重新打包就能带shell了。
 
 5.2.获取文件路径
 $ docker inspect <容器ID> | more
 
-找到EntryPoint部分：/cnb/process/web
-但这个文件只是个符号链接，它指向了：/cnb/lifecycle/launcher，这个文件有几十兆大，这就是打包之后的二进制文件，但直接下载后却不能执行，报告缺少文件，看来spring-native只是个二次封包的套壳程序，需要依赖一些spring-native所必须的文件，怪不得会用docker镜像来隐藏这些复杂的配置，实在是个聪明的解决方案
+其中的$.Config.Env.CNB_APP_DIR=/workspace 表示应用程序的工作空间,这里面有个执行文件 com.example.demo1.SpringNativeDemo1Application 就是程序启动的执行文件，可以把他拷贝出来直接执行
 
-5.3.只能通过容器执行
-如果想实现脱离容器执行，恐怕要费点事了，经过实践，从容器里复制出的编译后的二进制文件无法直接运行，如果按照原样把环境配置好倒是可以更贴近传统的原生程序的执行办法，但这样就又失去了其便捷性，幸好通过容器运行并不困难而且容器化也带来了新的好处，比如打包后的镜像可以上传到docker hub，实现方便的实现
+$ docker cp <容器ID>:/workspace/* .
+
+不过最好还是在镜像里执行，一方面每次cp执行文件都很罗嗦，另外也失去了docker的一键部署的便利性
+
 
 9.注意事项
 9.1.使用idea里面的mvn package是不能编译成原生的
 9.2.如果执行遇到OOM，需要把docker内存加大到8G
 9.3.不是所有的springboot包都支持spring-native，在编译的时候会给出提示的
 9.4.目前spring-native仍然不够稳定，暂时还不能用于生产
-
-
